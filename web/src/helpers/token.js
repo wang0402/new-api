@@ -19,6 +19,25 @@ For commercial licensing, please contact support@quantumnous.com
 
 import { API } from './api';
 
+function isLoopbackAddress(address) {
+  if (!address || typeof address !== 'string') {
+    return false;
+  }
+
+  try {
+    const { hostname } = new URL(address);
+    return (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '0.0.0.0' ||
+      hostname === '::1' ||
+      hostname === '[::1]'
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * 按需获取单个令牌的真实 key
  * @param {number|string} tokenId
@@ -78,6 +97,7 @@ export async function fetchTokenKeys() {
 export function getServerAddress() {
   let status = localStorage.getItem('status');
   let serverAddress = '';
+  const browserOrigin = window.location.origin;
 
   if (status) {
     try {
@@ -89,7 +109,11 @@ export function getServerAddress() {
   }
 
   if (!serverAddress) {
-    serverAddress = window.location.origin;
+    return browserOrigin;
+  }
+
+  if (isLoopbackAddress(serverAddress) && !isLoopbackAddress(browserOrigin)) {
+    return browserOrigin;
   }
 
   return serverAddress;
