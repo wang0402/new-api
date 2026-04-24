@@ -1,0 +1,4 @@
+services:
+  new-api:
+    image: ${NEW_API_IMAGE:?set NEW_API_IMAGE in .env or shell, for example ghcr.io/owner/new-api:tag}
+    pull_policy: always

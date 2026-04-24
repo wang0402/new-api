@@ -1,0 +1,7 @@
+services:
+  new-api:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: new-api-local:root-new-api
+    pull_policy: never
