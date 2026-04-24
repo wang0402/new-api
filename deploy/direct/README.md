@@ -51,6 +51,32 @@ Deploy on the server with:
 
 This pulls your prebuilt `new-api` image and starts the same Postgres, Redis, volumes, ports, and environment settings from `docker-compose.yml`. The server does not build the application image.
 
+### Build and push from local machine (recommended for slow servers)
+
+On your local machine:
+
+```sh
+# 1) Login registry first (example: GHCR)
+docker login ghcr.io
+
+# 2) Build and push local source code as image
+NEW_API_IMAGE=ghcr.io/your-org/new-api:20260424-1 \
+NEW_API_PLATFORM=linux/amd64 \
+./build-push-image.sh
+```
+
+Then on the server:
+
+```sh
+# 1) Set image tag in deploy/direct/.env
+NEW_API_IMAGE=ghcr.io/your-org/new-api:20260424-1
+
+# 2) Pull + start without building
+./up-image.sh
+```
+
+This is the fastest flow for production servers with weak CPU/disk performance.
+
 ## Local workflow
 
 When you sync upstream open-source changes into your local repo and keep your own custom patches on top, rebuild with:
@@ -67,3 +93,6 @@ The New API service listens on `127.0.0.1:3001` by default.
 - In prebuilt custom image mode, only `new-api` is pulled from `NEW_API_IMAGE`. `postgres` and `redis` still use their official images.
 - `data/` and `logs/` are runtime directories and are intentionally not tracked.
 - Database and Redis credentials are loaded from `.env`.
+- `build-push-image.sh` defaults:
+  - `NEW_API_PLATFORM=linux/amd64`
+  - `NEW_API_PUSH_MODE=push` (`load` for local-only testing)
