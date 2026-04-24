@@ -1,11 +1,14 @@
 package claude
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -375,6 +378,43 @@ func RequestOpenAI2ClaudeMessage(c *gin.Context, textRequest dto.GeneralOpenAIRe
 								Type: "text",
 								Text: common.GetPointer[string](mediaMessage.Text),
 							})
+						}
+					case dto.ContentTypeFile:
+						file := mediaMessage.GetFile()
+						if file == nil || file.FileData == "" {
+							continue
+						}
+						ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(file.FileName)), ".")
+						mimeType := ""
+						if ext != "" {
+							mimeType = service.GetMimeTypeByExtension(ext)
+						}
+						switch mimeType {
+						case "text/plain":
+							decoded, err := base64.StdEncoding.DecodeString(file.FileData)
+							if err != nil {
+								return nil, fmt.Errorf("decode text file data failed: %w", err)
+							}
+							if !utf8.Valid(decoded) {
+								continue
+							}
+							text := string(decoded)
+							claudeMediaMessages = append(claudeMediaMessages, dto.ClaudeMediaMessage{
+								Type: "text",
+								Text: common.GetPointer[string](text),
+							})
+						case "application/pdf":
+							claudeMediaMessages = append(claudeMediaMessages, dto.ClaudeMediaMessage{
+								Type: "document",
+								Source: &dto.ClaudeMessageSource{
+									Type:      "base64",
+									MediaType: "application/pdf",
+									Data:      file.FileData,
+								},
+							})
+						default:
+							// Claude 当前仅支持已识别的文件类型；未知类型忽略，避免误判为图片。
+							continue
 						}
 					default:
 						source := mediaMessage.ToFileSource()
