@@ -650,6 +650,29 @@ func shouldUseStreamForAutomaticChannelTest(channel *model.Channel) bool {
 	return channel != nil && channel.Type == constant.ChannelTypeCodex
 }
 
+func shouldRetryChannelTestWithStream(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.TrimSpace(strings.ToLower(err.Error()))
+	if message == "" {
+		return false
+	}
+	streamRetryHints := []string{
+		"stream must be set to true",
+		"stream only",
+		"stream-only",
+		"only supports stream",
+		"仅支持流式",
+	}
+	for _, hint := range streamRetryHints {
+		if strings.Contains(message, hint) {
+			return true
+		}
+	}
+	return false
+}
+
 func detectErrorMessageFromJSONBytes(jsonBytes []byte) string {
 	if len(jsonBytes) == 0 {
 		return ""
