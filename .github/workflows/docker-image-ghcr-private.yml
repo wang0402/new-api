@@ -15,6 +15,11 @@ on:
         required: false
         default: true
         type: boolean
+      deploy_to_server:
+        description: "Deploy to server after image push"
+        required: false
+        default: true
+        type: boolean
 
 env:
   REGISTRY: ghcr.io
@@ -23,6 +28,9 @@ jobs:
   build-and-push:
     name: Build and push multi-arch image
     runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.vars.outputs.app_version }}
+      image_ref: ${{ steps.vars.outputs.image_ref }}
     permissions:
       contents: read
       packages: write
@@ -61,6 +69,7 @@ jobs:
           {
             echo "short_sha=${SHORT_SHA}"
             echo "app_version=${APP_VERSION}"
+            echo "image_ref=${REGISTRY}/${IMAGE_NAME}:${APP_VERSION}"
             echo "tags<<EOF"
             echo "${TAGS}"
             echo "EOF"
@@ -113,3 +122,50 @@ jobs:
             echo
             echo "Digest: \`${{ steps.build.outputs.digest }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-to-server:
+    name: Deploy image to server
+    needs: [build-and-push]
+    runs-on: ubuntu-latest
+    if: |
+      vars.AUTO_DEPLOY_ENABLED == 'true' &&
+      (
+        github.event_name == 'push' ||
+        (github.event_name == 'workflow_dispatch' && inputs.deploy_to_server == true)
+      )
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ vars.SERVER_HOST }}
+          username: ${{ vars.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ vars.SERVER_PORT || '22' }}
+          script_stop: true
+          envs: IMAGE_REF,SERVER_GHCR_TOKEN,SERVER_GHCR_USERNAME,SERVER_DEPLOY_DIR
+          script: |
+            set -euo pipefail
+
+            cd "${SERVER_DEPLOY_DIR}"
+
+            if [[ ! -f .env ]]; then
+              cp .env.example .env
+            fi
+
+            if grep -q '^NEW_API_IMAGE=' .env; then
+              sed -i "s|^NEW_API_IMAGE=.*|NEW_API_IMAGE=${IMAGE_REF}|" .env
+            else
+              printf '\nNEW_API_IMAGE=%s\n' "${IMAGE_REF}" >> .env
+            fi
+
+            echo "${SERVER_GHCR_TOKEN}" | docker login ghcr.io -u "${SERVER_GHCR_USERNAME}" --password-stdin
+            ./up-image.sh
+
+            docker ps --filter name=new-api
+            curl -fsS "http://127.0.0.1:${NEW_API_PORT:-3001}/api/status" || true
+        env:
+          IMAGE_REF: ${{ needs.build-and-push.outputs.image_ref }}
+          SERVER_GHCR_TOKEN: ${{ secrets.SERVER_GHCR_TOKEN }}
+          SERVER_GHCR_USERNAME: ${{ vars.SERVER_GHCR_USERNAME || github.repository_owner }}
+          SERVER_DEPLOY_DIR: ${{ vars.SERVER_DEPLOY_DIR }}
