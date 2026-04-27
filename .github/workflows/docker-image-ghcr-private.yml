@@ -143,11 +143,10 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ vars.SERVER_PORT || '22' }}
           script_stop: true
-          envs: IMAGE_REF,SERVER_GHCR_TOKEN,SERVER_GHCR_USERNAME,SERVER_DEPLOY_DIR
           script: |
             set -eu
 
-            sudo bash -s -- "${IMAGE_REF}" "${SERVER_GHCR_TOKEN:-}" "${SERVER_GHCR_USERNAME}" "${SERVER_DEPLOY_DIR}" <<'DEPLOY'
+            sudo bash -s -- "${{ needs.build-and-push.outputs.image_ref }}" "${{ secrets.SERVER_GHCR_TOKEN }}" "${{ vars.SERVER_GHCR_USERNAME || github.repository_owner }}" "${{ vars.SERVER_DEPLOY_DIR }}" <<'DEPLOY'
             set -euo pipefail
 
             IMAGE_REF="$1"
@@ -179,8 +178,3 @@ jobs:
             . ./.env
             curl -fsS "http://127.0.0.1:${NEW_API_PORT:-3001}/api/status" || true
             DEPLOY
-        env:
-          IMAGE_REF: ${{ needs.build-and-push.outputs.image_ref }}
-          SERVER_GHCR_TOKEN: ${{ secrets.SERVER_GHCR_TOKEN }}
-          SERVER_GHCR_USERNAME: ${{ vars.SERVER_GHCR_USERNAME || github.repository_owner }}
-          SERVER_DEPLOY_DIR: ${{ vars.SERVER_DEPLOY_DIR }}
