@@ -33,13 +33,15 @@ jobs:
           printf '%s\n' "${SERVER_SSH_KEY}" > ~/.ssh/new-api-deploy-key
           chmod 600 ~/.ssh/new-api-deploy-key
 
+          REMOTE_CMD="$(printf 'sudo bash -s -- %q %q %q %q' "${IMAGE_REF}" "${SERVER_GHCR_TOKEN}" "${SERVER_GHCR_USERNAME}" "${SERVER_DEPLOY_DIR}")"
+
           ssh \
             -i ~/.ssh/new-api-deploy-key \
             -p "${SERVER_PORT}" \
             -o BatchMode=yes \
             -o StrictHostKeyChecking=accept-new \
             "${SERVER_USER}@${SERVER_HOST}" \
-            sudo bash -s -- "${IMAGE_REF}" "${SERVER_GHCR_TOKEN}" "${SERVER_GHCR_USERNAME}" "${SERVER_DEPLOY_DIR}" <<'DEPLOY'
+            "${REMOTE_CMD}" <<'DEPLOY'
           set -euo pipefail
 
           IMAGE_REF="$1"
