@@ -1,0 +1,73 @@
+name: Deploy existing GHCR image
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_ref:
+        description: "Full image ref to deploy, for example ghcr.io/wang0402/new-api:latest"
+        required: true
+        type: string
+
+jobs:
+  deploy-to-server:
+    name: Deploy existing image to server
+    runs-on: ubuntu-latest
+    if: vars.AUTO_DEPLOY_ENABLED == 'true'
+
+    steps:
+      - name: Deploy via SSH
+        shell: bash
+        env:
+          IMAGE_REF: ${{ inputs.image_ref }}
+          SERVER_DEPLOY_DIR: ${{ vars.SERVER_DEPLOY_DIR }}
+          SERVER_GHCR_TOKEN: ${{ secrets.SERVER_GHCR_TOKEN }}
+          SERVER_GHCR_USERNAME: ${{ vars.SERVER_GHCR_USERNAME || github.repository_owner }}
+          SERVER_HOST: ${{ vars.SERVER_HOST }}
+          SERVER_PORT: ${{ vars.SERVER_PORT || '22' }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          SERVER_USER: ${{ vars.SERVER_USER }}
+        run: |
+          set -euo pipefail
+
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${SERVER_SSH_KEY}" > ~/.ssh/new-api-deploy-key
+          chmod 600 ~/.ssh/new-api-deploy-key
+
+          ssh \
+            -i ~/.ssh/new-api-deploy-key \
+            -p "${SERVER_PORT}" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=accept-new \
+            "${SERVER_USER}@${SERVER_HOST}" \
+            sudo bash -s -- "${IMAGE_REF}" "${SERVER_GHCR_TOKEN}" "${SERVER_GHCR_USERNAME}" "${SERVER_DEPLOY_DIR}" <<'DEPLOY'
+            set -euo pipefail
+
+            IMAGE_REF="$1"
+            SERVER_GHCR_TOKEN="$2"
+            SERVER_GHCR_USERNAME="$3"
+            SERVER_DEPLOY_DIR="$4"
+
+            cd "${SERVER_DEPLOY_DIR}"
+
+            if [[ ! -f .env ]]; then
+              cp .env.example .env
+            fi
+
+            if grep -q '^NEW_API_IMAGE=' .env; then
+              sed -i "s|^NEW_API_IMAGE=.*|NEW_API_IMAGE=${IMAGE_REF}|" .env
+            else
+              printf '\nNEW_API_IMAGE=%s\n' "${IMAGE_REF}" >> .env
+            fi
+
+            if [[ -n "${SERVER_GHCR_TOKEN}" ]]; then
+              echo "${SERVER_GHCR_TOKEN}" | docker login ghcr.io -u "${SERVER_GHCR_USERNAME}" --password-stdin
+            else
+              echo "SERVER_GHCR_TOKEN is not set; using existing Docker registry login on the server."
+            fi
+
+            ./up-image.sh
+
+            docker ps --filter name=new-api
+            . ./.env
+            curl -fsS "http://127.0.0.1:${NEW_API_PORT:-3001}/api/status"
+            DEPLOY
