@@ -71,5 +71,14 @@ jobs:
 
           docker ps --filter name=new-api
           . ./.env
-          curl -fsS "http://127.0.0.1:${NEW_API_PORT:-3001}/api/status"
+          for attempt in {1..30}; do
+            if curl -fsS "http://127.0.0.1:${NEW_API_PORT:-3001}/api/status"; then
+              exit 0
+            fi
+            echo "Waiting for new-api to become ready (${attempt}/30)..."
+            sleep 2
+          done
+
+          docker logs --tail 80 new-api
+          exit 1
           DEPLOY
