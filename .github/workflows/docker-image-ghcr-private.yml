@@ -147,6 +147,14 @@ jobs:
           script: |
             set -euo pipefail
 
+            sudo bash -s -- "${IMAGE_REF}" "${SERVER_GHCR_TOKEN:-}" "${SERVER_GHCR_USERNAME}" "${SERVER_DEPLOY_DIR}" <<'DEPLOY'
+            set -euo pipefail
+
+            IMAGE_REF="$1"
+            SERVER_GHCR_TOKEN="$2"
+            SERVER_GHCR_USERNAME="$3"
+            SERVER_DEPLOY_DIR="$4"
+
             cd "${SERVER_DEPLOY_DIR}"
 
             if [[ ! -f .env ]]; then
@@ -159,11 +167,18 @@ jobs:
               printf '\nNEW_API_IMAGE=%s\n' "${IMAGE_REF}" >> .env
             fi
 
-            echo "${SERVER_GHCR_TOKEN}" | docker login ghcr.io -u "${SERVER_GHCR_USERNAME}" --password-stdin
+            if [[ -n "${SERVER_GHCR_TOKEN}" ]]; then
+              echo "${SERVER_GHCR_TOKEN}" | docker login ghcr.io -u "${SERVER_GHCR_USERNAME}" --password-stdin
+            else
+              echo "SERVER_GHCR_TOKEN is not set; using existing Docker registry login on the server."
+            fi
+
             ./up-image.sh
 
             docker ps --filter name=new-api
+            . ./.env
             curl -fsS "http://127.0.0.1:${NEW_API_PORT:-3001}/api/status" || true
+            DEPLOY
         env:
           IMAGE_REF: ${{ needs.build-and-push.outputs.image_ref }}
           SERVER_GHCR_TOKEN: ${{ secrets.SERVER_GHCR_TOKEN }}
