@@ -4,7 +4,7 @@ import { getUserModels, getUserGroups } from './api'
 import { PlaygroundChat } from './components/playground-chat'
 import { PlaygroundInput } from './components/playground-input'
 import { DEFAULT_GROUP } from './constants'
-import { usePlaygroundState, useChatHandler } from './hooks'
+import { usePlaygroundState, useChatHandler, useImageHandler } from './hooks'
 import { createUserMessage, createLoadingAssistantMessage } from './lib'
 import type { Message as MessageType } from './types'
 
@@ -21,11 +21,22 @@ export function Playground() {
     updateConfig,
   } = usePlaygroundState()
 
-  const { sendChat, stopGeneration, isGenerating } = useChatHandler({
+  const {
+    sendChat,
+    stopGeneration,
+    isGenerating: isChatGenerating,
+  } = useChatHandler({
     config,
     parameterEnabled,
     onMessageUpdate: updateMessages,
   })
+
+  const { sendImage, isGenerating: isImageGenerating } = useImageHandler({
+    config,
+    onMessageUpdate: updateMessages,
+  })
+
+  const isGenerating = isChatGenerating || isImageGenerating
 
   // Edit dialog state
   const [editingMessageKey, setEditingMessageKey] = useState<string | null>(
@@ -85,7 +96,11 @@ export function Playground() {
     const newMessages = [...messages, userMessage, assistantMessage]
     updateMessages(newMessages)
 
-    // Send chat request
+    if (config.mode === 'image') {
+      sendImage(text)
+      return
+    }
+
     sendChat(newMessages)
   }
 
@@ -106,6 +121,18 @@ export function Playground() {
     const newMessages = [...messagesUpToHere, loadingMessage]
 
     updateMessages(newMessages)
+    if (config.mode === 'image') {
+      const prompt = [...messagesUpToHere]
+        .reverse()
+        .find((m) => m.from === 'user')
+        ?.versions[0]?.content
+      if (!prompt) {
+        updateMessages(messagesUpToHere)
+        return
+      }
+      sendImage(prompt)
+      return
+    }
     sendChat(newMessages)
   }
 
@@ -142,9 +169,20 @@ export function Playground() {
         createLoadingAssistantMessage(),
       ]
       updateMessages(toSubmit)
+      if (config.mode === 'image') {
+        sendImage(newContent)
+        return
+      }
       sendChat(toSubmit)
     },
-    [editingMessageKey, messages, updateMessages, sendChat]
+    [
+      config.mode,
+      editingMessageKey,
+      messages,
+      sendChat,
+      sendImage,
+      updateMessages,
+    ]
   )
 
   const handleDeleteMessage = (message: MessageType) => {
@@ -181,8 +219,18 @@ export function Playground() {
           modelValue={config.model}
           models={models}
           onGroupChange={(value) => updateConfig('group', value)}
+          mode={config.mode}
+          onModeChange={(value) => updateConfig('mode', value)}
+          imageSize={config.image_size}
+          onImageSizeChange={(value) => updateConfig('image_size', value)}
+          imageQuality={config.image_quality}
+          onImageQualityChange={(value) =>
+            updateConfig('image_quality', value)
+          }
+          imageCount={config.image_n}
+          onImageCountChange={(value) => updateConfig('image_n', value)}
           onModelChange={(value) => updateConfig('model', value)}
-          onStop={stopGeneration}
+          onStop={config.mode === 'chat' ? stopGeneration : undefined}
           onSubmit={handleSendMessage}
         />
       </div>

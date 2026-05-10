@@ -314,9 +314,10 @@ export function sanitizeMessagesOnLoad(messages: Message[]): Message[] {
   const finalized = finalizeMessage(messages[targetIndex])
   const hasContent = finalized.versions?.[0]?.content?.trim()
   const hasReasoning = finalized.reasoning?.content?.trim()
+  const hasImages = (finalized.images?.length || 0) > 0
 
   const sanitized: Message =
-    hasContent || hasReasoning
+    hasContent || hasReasoning || hasImages
       ? {
           ...finalized,
           status: MESSAGE_STATUS.COMPLETE,

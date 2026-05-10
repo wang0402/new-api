@@ -3,6 +3,8 @@ import {
   PaperclipIcon,
   FileIcon,
   ImageIcon,
+  ImagesIcon,
+  MessageCircleIcon,
   ScreenShareIcon,
   CameraIcon,
   GlobeIcon,
@@ -20,6 +22,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
@@ -32,7 +36,7 @@ import {
 } from '@/components/ai-elements/prompt-input'
 import { Suggestion, Suggestions } from '@/components/ai-elements/suggestion'
 import { ModelGroupSelector } from '@/components/model-group-selector'
-import type { ModelOption, GroupOption } from '../types'
+import type { ModelOption, GroupOption, PlaygroundMode } from '../types'
 
 interface PlaygroundInputProps {
   onSubmit: (text: string) => void
@@ -46,6 +50,14 @@ interface PlaygroundInputProps {
   groups: GroupOption[]
   groupValue: string
   onGroupChange: (value: string) => void
+  mode: PlaygroundMode
+  onModeChange: (value: PlaygroundMode) => void
+  imageSize: string
+  onImageSizeChange: (value: string) => void
+  imageQuality: string
+  onImageQualityChange: (value: string) => void
+  imageCount: number
+  onImageCountChange: (value: number) => void
 }
 
 const suggestions = [
@@ -56,6 +68,10 @@ const suggestions = [
   { icon: GraduationCapIcon, text: 'Get advice', color: '#76d0eb' },
   { icon: null, text: 'More' },
 ]
+
+const imageSizes = ['1024x1024', '1024x1536', '1536x1024', 'auto']
+const imageQualities = ['auto', 'standard', 'high', 'medium', 'low']
+const imageCounts = [1, 2, 3, 4]
 
 export function PlaygroundInput({
   onSubmit,
@@ -69,6 +85,14 @@ export function PlaygroundInput({
   groups,
   groupValue,
   onGroupChange,
+  mode,
+  onModeChange,
+  imageSize,
+  onImageSizeChange,
+  imageQuality,
+  onImageQualityChange,
+  imageCount,
+  onImageCountChange,
 }: PlaygroundInputProps) {
   const { t } = useTranslation()
   const [text, setText] = useState('')
@@ -107,12 +131,41 @@ export function PlaygroundInput({
           className='px-5 md:text-base'
           disabled={disabled}
           onChange={(event) => setText(event.target.value)}
-          placeholder={t('Ask anything')}
+          placeholder={
+            mode === 'image'
+              ? t('Describe the image you want')
+              : t('Ask anything')
+          }
           value={text}
         />
 
         <PromptInputFooter className='p-2.5'>
           <PromptInputTools>
+            <div className='bg-muted flex items-center rounded-full p-0.5'>
+              <PromptInputButton
+                aria-label={t('Chat')}
+                className={`rounded-full ${
+                  mode === 'chat' ? 'bg-background shadow-sm' : ''
+                }`}
+                disabled={disabled}
+                onClick={() => onModeChange('chat')}
+                variant='ghost'
+              >
+                <MessageCircleIcon size={16} />
+              </PromptInputButton>
+              <PromptInputButton
+                aria-label={t('Image Generation')}
+                className={`rounded-full ${
+                  mode === 'image' ? 'bg-background shadow-sm' : ''
+                }`}
+                disabled={disabled}
+                onClick={() => onModeChange('image')}
+                variant='ghost'
+              >
+                <ImagesIcon size={16} />
+              </PromptInputButton>
+            </div>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <PromptInputButton
@@ -153,16 +206,67 @@ export function PlaygroundInput({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <PromptInputButton
-              className='rounded-full border font-medium'
-              disabled={disabled}
-              onClick={() => toast.info(t('Search feature in development'))}
-              variant='outline'
-            >
-              <GlobeIcon size={16} />
-              <span className='hidden sm:inline'>{t('Search')}</span>
-              <span className='sr-only sm:hidden'>{t('Search')}</span>
-            </PromptInputButton>
+            {mode === 'image' ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <PromptInputButton
+                    className='rounded-full border font-medium'
+                    disabled={disabled}
+                    variant='outline'
+                  >
+                    <ImageIcon size={16} />
+                    <span className='hidden sm:inline'>
+                      {imageSize} · {imageQuality} · {imageCount}
+                    </span>
+                    <span className='sr-only sm:hidden'>
+                      {t('Image Settings')}
+                    </span>
+                  </PromptInputButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align='start' className='w-48'>
+                  <DropdownMenuLabel>{t('Image Size')}</DropdownMenuLabel>
+                  {imageSizes.map((size) => (
+                    <DropdownMenuItem
+                      key={size}
+                      onClick={() => onImageSizeChange(size)}
+                    >
+                      {size}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>{t('Image Quality')}</DropdownMenuLabel>
+                  {imageQualities.map((quality) => (
+                    <DropdownMenuItem
+                      key={quality}
+                      onClick={() => onImageQualityChange(quality)}
+                    >
+                      {quality}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>{t('Image Count')}</DropdownMenuLabel>
+                  {imageCounts.map((count) => (
+                    <DropdownMenuItem
+                      key={count}
+                      onClick={() => onImageCountChange(count)}
+                    >
+                      {count}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <PromptInputButton
+                className='rounded-full border font-medium'
+                disabled={disabled}
+                onClick={() => toast.info(t('Search feature in development'))}
+                variant='outline'
+              >
+                <GlobeIcon size={16} />
+                <span className='hidden sm:inline'>{t('Search')}</span>
+                <span className='sr-only sm:hidden'>{t('Search')}</span>
+              </PromptInputButton>
+            )}
           </PromptInputTools>
 
           <div className='flex items-center gap-1.5 md:gap-2'>
@@ -203,7 +307,26 @@ export function PlaygroundInput({
       </PromptInput>
 
       <Suggestions>
-        {suggestions.map(({ icon: Icon, text, color }) => (
+        {(mode === 'image'
+          ? [
+              {
+                icon: ImageIcon,
+                text: 'A cinematic product photo',
+                color: '#76d0eb',
+              },
+              {
+                icon: CameraIcon,
+                text: 'Portrait with soft studio light',
+                color: '#ea8444',
+              },
+              {
+                icon: ImagesIcon,
+                text: 'Minimal app illustration',
+                color: '#6c71ff',
+              },
+            ]
+          : suggestions
+        ).map(({ icon: Icon, text, color }) => (
           <Suggestion
             className={`text-xs font-normal sm:text-sm ${
               text === 'More' ? 'hidden sm:flex' : ''
@@ -213,7 +336,7 @@ export function PlaygroundInput({
             suggestion={text}
           >
             {Icon && <Icon size={16} style={{ color }} />}
-            {text}
+            {t(text)}
           </Suggestion>
         ))}
       </Suggestions>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -37,6 +38,12 @@ import type { Message as MessageType } from '../types'
 import { MessageActions } from './message-actions'
 import { MessageError } from './message-error'
 
+function getImageSrc(image: { url?: string; b64_json?: string }) {
+  if (image.url) return image.url
+  if (image.b64_json) return `data:image/png;base64,${image.b64_json}`
+  return ''
+}
+
 interface PlaygroundChatProps {
   messages: MessageType[]
   onCopyMessage?: (message: MessageType) => void
@@ -62,6 +69,7 @@ export function PlaygroundChat({
   onCancelEdit,
   onSaveEditAndSubmit,
 }: PlaygroundChatProps) {
+  const { t } = useTranslation()
   const [editText, setEditText] = useState('')
   const [originalText, setOriginalText] = useState('')
 
@@ -155,7 +163,7 @@ export function PlaygroundChat({
                               const showMessageContent =
                                 (message.from === MESSAGE_ROLES.USER ||
                                   !message.isReasoningStreaming) &&
-                                !!version.content
+                                (!!version.content || !!message.images?.length)
 
                               // Extract visible content (remove <think> tags for assistant messages)
                               const displayContent = isAssistant
@@ -238,7 +246,38 @@ export function PlaygroundChat({
                                             getMessageContentStyles()
                                           )}
                                         >
-                                          <Response>{displayContent}</Response>
+                                          {!!message.images?.length && (
+                                            <div className='grid gap-3 sm:grid-cols-2'>
+                                              {message.images.map(
+                                                (image, imageIndex) => {
+                                                  const src = getImageSrc(image)
+                                                  if (!src) return null
+                                                  return (
+                                                    <a
+                                                      href={src}
+                                                      key={`${message.key}-image-${imageIndex}`}
+                                                      rel='noreferrer'
+                                                      target='_blank'
+                                                      className='bg-muted/50 overflow-hidden rounded-lg border'
+                                                    >
+                                                      <img
+                                                        alt={
+                                                          image.revised_prompt ||
+                                                          t('Generated image')
+                                                        }
+                                                        className='aspect-square w-full object-contain'
+                                                        loading='lazy'
+                                                        src={src}
+                                                      />
+                                                    </a>
+                                                  )
+                                                }
+                                              )}
+                                            </div>
+                                          )}
+                                          {displayContent && (
+                                            <Response>{displayContent}</Response>
+                                          )}
                                         </MessageContent>
                                         {actions}
                                       </>

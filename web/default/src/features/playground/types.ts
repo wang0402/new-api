@@ -3,15 +3,24 @@ export type MessageRole = 'user' | 'assistant' | 'system'
 
 export type MessageStatus = 'loading' | 'streaming' | 'complete' | 'error'
 
+export type PlaygroundMode = 'chat' | 'image'
+
 export interface MessageVersion {
   id: string
   content: string
+}
+
+export interface GeneratedImage {
+  url?: string
+  b64_json?: string
+  revised_prompt?: string
 }
 
 export interface Message {
   key: string
   from: MessageRole
   versions: MessageVersion[]
+  images?: GeneratedImage[]
   sources?: { href: string; title: string }[]
   reasoning?: {
     content: string
@@ -51,6 +60,15 @@ export interface ChatCompletionRequest {
   seed?: number
 }
 
+export interface ImageGenerationRequest {
+  model: string
+  group?: string
+  prompt: string
+  size?: string
+  quality?: string
+  n?: number
+}
+
 export interface ChatCompletionChunk {
   id: string
   object: string
@@ -88,10 +106,19 @@ export interface ChatCompletionResponse {
   }
 }
 
+export interface ImageGenerationResponse {
+  created: number
+  data: GeneratedImage[]
+}
+
 // Configuration types
 export interface PlaygroundConfig {
   model: string
   group: string
+  mode: PlaygroundMode
+  image_size: string
+  image_quality: string
+  image_n: number
   temperature: number
   top_p: number
   max_tokens: number
