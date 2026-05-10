@@ -97,17 +97,30 @@ export const useMessageEdit = (
               setTimeout(() => saveMessages(messagesUntilUser), 0);
 
               setTimeout(() => {
-                const payload = buildApiPayload(
-                  messagesUntilUser,
-                  null,
-                  inputs,
-                  parameterEnabled,
-                );
+                const payload = inputs.imageGenerationMode
+                  ? {
+                      model: inputs.model,
+                      group: inputs.group,
+                      prompt: editValue.trim(),
+                      size: inputs.imageSize,
+                      quality: inputs.imageQuality,
+                      n: inputs.imageCount,
+                    }
+                  : buildApiPayload(
+                      messagesUntilUser,
+                      null,
+                      inputs,
+                      parameterEnabled,
+                    );
                 setMessage((prevMsg) => [
                   ...prevMsg,
                   createLoadingAssistantMessage(),
                 ]);
-                sendRequest(payload, inputs.stream);
+                sendRequest(
+                  payload,
+                  inputs.stream,
+                  inputs.imageGenerationMode ? 'image' : 'chat',
+                );
               }, 100);
             },
             onCancel: () => {

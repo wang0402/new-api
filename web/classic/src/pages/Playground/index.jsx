@@ -228,6 +228,18 @@ const Playground = () => {
         }
       }
 
+      if (inputs.imageGenerationMode) {
+        const prompt = getTextContent(messages[messages.length - 1]) || '';
+        return {
+          model: inputs.model,
+          group: inputs.group,
+          prompt,
+          size: inputs.imageSize,
+          quality: inputs.imageQuality,
+          n: inputs.imageCount,
+        };
+      }
+
       return buildApiPayload(messages, null, inputs, parameterEnabled);
     } catch (error) {
       console.error('构造预览请求体失败:', error);
@@ -265,6 +277,30 @@ const Playground = () => {
         Toast.error(ERROR_MESSAGES.JSON_PARSE_ERROR);
         return;
       }
+    }
+
+    // 图片生成模式
+    if (inputs.imageGenerationMode) {
+      const payload = {
+        model: inputs.model,
+        group: inputs.group,
+        prompt: content,
+        size: inputs.imageSize,
+        quality: inputs.imageQuality,
+        n: inputs.imageCount,
+      };
+
+      setMessage((prevMessage) => {
+        const messagesWithLoading = [
+          ...prevMessage,
+          userMessage,
+          loadingMessage,
+        ];
+        sendRequest(payload, false, 'image');
+        setTimeout(() => saveMessagesImmediately(messagesWithLoading), 0);
+        return messagesWithLoading;
+      });
+      return;
     }
 
     // 默认模式

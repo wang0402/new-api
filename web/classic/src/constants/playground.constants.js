@@ -76,6 +76,7 @@ export const DEBUG_TABS = {
 // ========== API 相关常量 ==========
 export const API_ENDPOINTS = {
   CHAT_COMPLETIONS: '/pg/chat/completions',
+  IMAGE_GENERATIONS: '/pg/images/generations',
   USER_MODELS: '/api/user/models',
   USER_GROUPS: '/api/user/self/groups',
 };
@@ -92,6 +93,10 @@ export const DEFAULT_CONFIG = {
     presence_penalty: 0,
     seed: null,
     stream: true,
+    imageGenerationMode: false,
+    imageSize: '1024x1024',
+    imageQuality: 'auto',
+    imageCount: 1,
     imageEnabled: false,
     imageUrls: [''],
   },

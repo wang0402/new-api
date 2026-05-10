@@ -18,8 +18,15 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Card, Select, Typography, Button, Switch } from '@douyinfe/semi-ui';
-import { Sparkles, Users, ToggleLeft, X, Settings } from 'lucide-react';
+import {
+  Card,
+  Select,
+  Typography,
+  Button,
+  Switch,
+  InputNumber,
+} from '@douyinfe/semi-ui';
+import { Sparkles, Users, ToggleLeft, X, Settings, Images } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { renderGroupOption, selectFilter } from '../../helpers';
 import ParameterControl from './ParameterControl';
@@ -47,6 +54,19 @@ const SettingsPanel = ({
   messages,
 }) => {
   const { t } = useTranslation();
+  const imageSizeOptions = [
+    { label: '1024x1024', value: '1024x1024' },
+    { label: '1024x1536', value: '1024x1536' },
+    { label: '1536x1024', value: '1536x1024' },
+    { label: 'auto', value: 'auto' },
+  ];
+  const imageQualityOptions = [
+    { label: 'auto', value: 'auto' },
+    { label: 'standard', value: 'standard' },
+    { label: 'high', value: 'high' },
+    { label: 'medium', value: 'medium' },
+    { label: 'low', value: 'low' },
+  ];
 
   const currentConfig = {
     inputs,
@@ -176,8 +196,87 @@ const SettingsPanel = ({
           />
         </div>
 
-        {/* 图片URL输入 */}
+        {/* 图片生成模式 */}
         <div className={customRequestMode ? 'opacity-50' : ''}>
+          <div className='flex items-center justify-between'>
+            <div className='flex items-center gap-2'>
+              <Images size={16} className='text-gray-500' />
+              <Typography.Text strong className='text-sm'>
+                {t('图片生成模式')}
+              </Typography.Text>
+              {customRequestMode && (
+                <Typography.Text className='text-xs text-orange-600'>
+                  ({t('已在自定义模式中忽略')})
+                </Typography.Text>
+              )}
+            </div>
+            <Switch
+              checked={!!inputs.imageGenerationMode}
+              onChange={(checked) =>
+                onInputChange('imageGenerationMode', checked)
+              }
+              checkedText={t('开')}
+              uncheckedText={t('关')}
+              size='small'
+              disabled={customRequestMode}
+            />
+          </div>
+          <Typography.Text className='block text-xs text-gray-500 mt-2'>
+            {t('启用后将请求图片生成接口，而不是聊天接口')}
+          </Typography.Text>
+        </div>
+
+        {inputs.imageGenerationMode && (
+          <div className='space-y-4 rounded-lg border border-blue-100 bg-blue-50/40 p-3'>
+            <div>
+              <Typography.Text strong className='text-sm'>
+                {t('图片尺寸')}
+              </Typography.Text>
+              <Select
+                value={inputs.imageSize || '1024x1024'}
+                optionList={imageSizeOptions}
+                onChange={(value) => onInputChange('imageSize', value)}
+                style={{ width: '100%', marginTop: 8 }}
+                disabled={customRequestMode}
+              />
+            </div>
+            <div>
+              <Typography.Text strong className='text-sm'>
+                {t('图片质量')}
+              </Typography.Text>
+              <Select
+                value={inputs.imageQuality || 'auto'}
+                optionList={imageQualityOptions}
+                onChange={(value) => onInputChange('imageQuality', value)}
+                style={{ width: '100%', marginTop: 8 }}
+                disabled={customRequestMode}
+              />
+            </div>
+            <div>
+              <Typography.Text strong className='text-sm'>
+                {t('图片数量')}
+              </Typography.Text>
+              <InputNumber
+                value={inputs.imageCount || 1}
+                min={1}
+                max={4}
+                precision={0}
+                onNumberChange={(value) =>
+                  onInputChange('imageCount', value || 1)
+                }
+                style={{ width: '100%', marginTop: 8 }}
+                disabled={customRequestMode}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* 图片URL输入 */}
+        <div
+          className={
+            customRequestMode || inputs.imageGenerationMode ? 'opacity-50' : ''
+          }
+        >
           <ImageUrlInput
             imageUrls={inputs.imageUrls}
             imageEnabled={inputs.imageEnabled}
@@ -185,23 +284,31 @@ const SettingsPanel = ({
             onImageEnabledChange={(enabled) =>
               onInputChange('imageEnabled', enabled)
             }
-            disabled={customRequestMode}
+            disabled={customRequestMode || inputs.imageGenerationMode}
           />
         </div>
 
         {/* 参数控制组件 */}
-        <div className={customRequestMode ? 'opacity-50' : ''}>
+        <div
+          className={
+            customRequestMode || inputs.imageGenerationMode ? 'opacity-50' : ''
+          }
+        >
           <ParameterControl
             inputs={inputs}
             parameterEnabled={parameterEnabled}
             onInputChange={onInputChange}
             onParameterToggle={onParameterToggle}
-            disabled={customRequestMode}
+            disabled={customRequestMode || inputs.imageGenerationMode}
           />
         </div>
 
         {/* 流式输出开关 */}
-        <div className={customRequestMode ? 'opacity-50' : ''}>
+        <div
+          className={
+            customRequestMode || inputs.imageGenerationMode ? 'opacity-50' : ''
+          }
+        >
           <div className='flex items-center justify-between'>
             <div className='flex items-center gap-2'>
               <ToggleLeft size={16} className='text-gray-500' />
@@ -220,7 +327,7 @@ const SettingsPanel = ({
               checkedText={t('开')}
               uncheckedText={t('关')}
               size='small'
-              disabled={customRequestMode}
+              disabled={customRequestMode || inputs.imageGenerationMode}
             />
           </div>
         </div>

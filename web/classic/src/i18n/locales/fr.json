@@ -3642,6 +3642,14 @@
     "默认折叠侧边栏": "Réduire la barre latérale par défaut",
     "默认测试模型": "Modèle de test par défaut",
     "默认用户消息": "Bonjour",
-    "默认补全倍率": "Taux de complétion par défaut"
+    "默认补全倍率": "Taux de complétion par défaut",
+    "图片生成模式": "Mode génération d’image",
+    "启用后将请求图片生成接口，而不是聊天接口": "Une fois activé, les requêtes utilisent l’interface de génération d’images au lieu du chat.",
+    "图片尺寸": "Taille d’image",
+    "图片质量": "Qualité d’image",
+    "图片数量": "Nombre d’images",
+    "图片生成完成": "Image générée",
+    "未返回图片": "Aucune image retournée",
+    "图片生成": "Génération d’images"
   }
 }

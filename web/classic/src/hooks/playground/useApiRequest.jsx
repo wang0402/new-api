@@ -300,6 +300,142 @@ export const useApiRequest = (
     [setDebugData, setActiveDebugTab, setMessage, t, applyAutoCollapseLogic],
   );
 
+  // 图片生成请求
+  const handleImageGenerationRequest = useCallback(
+    async (payload) => {
+      setDebugData((prev) => ({
+        ...prev,
+        request: payload,
+        timestamp: new Date().toISOString(),
+        response: null,
+        sseMessages: null,
+        isStreaming: false,
+      }));
+      setActiveDebugTab(DEBUG_TABS.REQUEST);
+
+      try {
+        const response = await fetch(API_ENDPOINTS.IMAGE_GENERATIONS, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'New-Api-User': getUserIdFromLocalStorage(),
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          let errorBody = '';
+          let parsedError = null;
+          try {
+            errorBody = await response.text();
+            const errorJson = JSON.parse(errorBody);
+            if (errorJson?.error) {
+              parsedError = errorJson.error;
+            }
+          } catch (e) {
+            if (!errorBody) {
+              errorBody = '无法读取错误响应体';
+            }
+          }
+
+          const err = new Error(
+            parsedError?.message ||
+              `HTTP error! status: ${response.status}, body: ${errorBody}`,
+          );
+          err.errorCode = parsedError?.code || null;
+          throw err;
+        }
+
+        const data = await response.json();
+
+        setDebugData((prev) => ({
+          ...prev,
+          response: JSON.stringify(data, null, 2),
+        }));
+        setActiveDebugTab(DEBUG_TABS.RESPONSE);
+
+        const images = Array.isArray(data.data) ? data.data : [];
+        const content = [
+          {
+            type: 'text',
+            text:
+              images[0]?.revised_prompt ||
+              (images.length > 0 ? t('图片生成完成') : t('未返回图片')),
+          },
+          ...images
+            .map((image) => {
+              const url =
+                image.url ||
+                (image.b64_json
+                  ? `data:image/png;base64,${image.b64_json}`
+                  : '');
+              if (!url) return null;
+              return {
+                type: 'image_url',
+                image_url: { url },
+              };
+            })
+            .filter(Boolean),
+        ];
+
+        setMessage((prevMessage) => {
+          const newMessages = [...prevMessage];
+          const lastMessage = newMessages[newMessages.length - 1];
+          if (lastMessage?.status === MESSAGE_STATUS.LOADING) {
+            const autoCollapseState = applyAutoCollapseLogic(
+              lastMessage,
+              true,
+            );
+
+            newMessages[newMessages.length - 1] = {
+              ...lastMessage,
+              content,
+              status: MESSAGE_STATUS.COMPLETE,
+              ...autoCollapseState,
+            };
+          }
+          setTimeout(() => saveMessages(newMessages), 0);
+          return newMessages;
+        });
+      } catch (error) {
+        console.error('Image generation request error:', error);
+
+        const errorInfo = handleApiError(error);
+        setDebugData((prev) => ({
+          ...prev,
+          response: JSON.stringify(errorInfo, null, 2),
+        }));
+        setActiveDebugTab(DEBUG_TABS.RESPONSE);
+
+        setMessage((prevMessage) => {
+          const newMessages = [...prevMessage];
+          const lastMessage = newMessages[newMessages.length - 1];
+          if (lastMessage?.status === MESSAGE_STATUS.LOADING) {
+            const autoCollapseState = applyAutoCollapseLogic(lastMessage, true);
+
+            newMessages[newMessages.length - 1] = {
+              ...lastMessage,
+              content: t('请求发生错误: ') + error.message,
+              errorCode: error.errorCode || null,
+              status: MESSAGE_STATUS.ERROR,
+              ...autoCollapseState,
+            };
+          }
+          setTimeout(() => saveMessages(newMessages), 0);
+          return newMessages;
+        });
+      }
+    },
+    [
+      setDebugData,
+      setActiveDebugTab,
+      setMessage,
+      saveMessages,
+      t,
+      applyAutoCollapseLogic,
+    ],
+  );
+
   // SSE请求
   const handleSSE = useCallback(
     (payload) => {
@@ -536,14 +672,18 @@ export const useApiRequest = (
 
   // 发送请求
   const sendRequest = useCallback(
-    (payload, isStream) => {
+    (payload, isStream, requestType = 'chat') => {
+      if (requestType === 'image') {
+        handleImageGenerationRequest(payload);
+        return;
+      }
       if (isStream) {
         handleSSE(payload);
       } else {
         handleNonStreamRequest(payload);
       }
     },
-    [handleSSE, handleNonStreamRequest],
+    [handleSSE, handleNonStreamRequest, handleImageGenerationRequest],
   );
 
   return {

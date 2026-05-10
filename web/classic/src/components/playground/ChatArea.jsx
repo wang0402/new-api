@@ -70,7 +70,7 @@ const ChatArea = ({
               </div>
               <div>
                 <Typography.Title heading={5} className='!text-white mb-0'>
-                  {t('AI 对话')}
+                  {inputs.imageGenerationMode ? t('图片生成') : t('AI 对话')}
                 </Typography.Title>
                 <Typography.Text className='!text-white/80 text-sm hidden sm:inline'>
                   {inputs.model || t('选择模型开始对话')}

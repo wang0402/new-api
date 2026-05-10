@@ -3787,6 +3787,14 @@
     "见上方动态计费详情": "See dynamic pricing details above",
     "含时间条件": "Time rules",
     "含请求条件": "Request rules",
-    "（当前仅支持易支付接口，默认使用上方服务器地址作为回调地址！）": "(Currently only supports Epay interface, the default callback address is the server address above!)"
+    "（当前仅支持易支付接口，默认使用上方服务器地址作为回调地址！）": "(Currently only supports Epay interface, the default callback address is the server address above!)",
+    "图片生成模式": "Image generation mode",
+    "启用后将请求图片生成接口，而不是聊天接口": "When enabled, requests use the image generation endpoint instead of chat.",
+    "图片尺寸": "Image size",
+    "图片质量": "Image quality",
+    "图片数量": "Image count",
+    "图片生成完成": "Image generated",
+    "未返回图片": "No image returned",
+    "图片生成": "Image Generation"
   }
 }
