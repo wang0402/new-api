@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Download } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -42,6 +44,52 @@ function getImageSrc(image: { url?: string; b64_json?: string }) {
   if (image.url) return image.url
   if (image.b64_json) return `data:image/png;base64,${image.b64_json}`
   return ''
+}
+
+function getImageExtension(src: string) {
+  if (src.startsWith('data:image/')) {
+    const match = src.match(/^data:image\/([^;,]+)/)
+    return match?.[1]?.replace('jpeg', 'jpg') || 'png'
+  }
+  try {
+    const pathname = new URL(src, window.location.href).pathname
+    const ext = pathname.split('.').pop()?.toLowerCase()
+    if (ext && /^[a-z0-9]+$/.test(ext) && ext.length <= 5) return ext
+  } catch {
+    /* empty */
+  }
+  return 'png'
+}
+
+async function downloadImage(src: string, filename: string) {
+  let href = src
+  let objectUrl = ''
+
+  if (!src.startsWith('data:')) {
+    const uid = window.localStorage.getItem('uid') || ''
+    const response = await fetch('/pg/images/download', {
+      body: JSON.stringify({ url: src, filename }),
+      headers: {
+        'Content-Type': 'application/json',
+        'New-Api-User': uid,
+      },
+      method: 'POST',
+    })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    objectUrl = URL.createObjectURL(await response.blob())
+    href = objectUrl
+  }
+
+  const link = document.createElement('a')
+  link.href = href
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+
+  if (objectUrl) {
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+  }
 }
 
 interface PlaygroundChatProps {
@@ -253,23 +301,58 @@ export function PlaygroundChat({
                                                   const src = getImageSrc(image)
                                                   if (!src) return null
                                                   return (
-                                                    <a
-                                                      href={src}
+                                                    <div
                                                       key={`${message.key}-image-${imageIndex}`}
-                                                      rel='noreferrer'
-                                                      target='_blank'
-                                                      className='bg-muted/50 overflow-hidden rounded-lg border'
+                                                      className='bg-muted/50 group relative overflow-hidden rounded-lg border'
                                                     >
-                                                      <img
-                                                        alt={
-                                                          image.revised_prompt ||
-                                                          t('Generated image')
-                                                        }
-                                                        className='aspect-square w-full object-contain'
-                                                        loading='lazy'
-                                                        src={src}
-                                                      />
-                                                    </a>
+                                                      <a
+                                                        href={src}
+                                                        rel='noreferrer'
+                                                        target='_blank'
+                                                        className='block'
+                                                      >
+                                                        <img
+                                                          alt={
+                                                            image.revised_prompt ||
+                                                            t('Generated image')
+                                                          }
+                                                          className='aspect-square w-full object-contain'
+                                                          loading='lazy'
+                                                          src={src}
+                                                        />
+                                                      </a>
+                                                      <Button
+                                                        aria-label={t(
+                                                          'Download'
+                                                        )}
+                                                        className='absolute right-2 top-2 h-8 bg-background/90 px-2 shadow-sm backdrop-blur hover:bg-background'
+                                                        onClick={async () => {
+                                                          try {
+                                                            await downloadImage(
+                                                              src,
+                                                              `playground-image-${Date.now()}-${imageIndex + 1}.${getImageExtension(src)}`
+                                                            )
+                                                          } catch {
+                                                            toast.error(
+                                                              t(
+                                                                'Download failed'
+                                                              )
+                                                            )
+                                                            window.open(
+                                                              src,
+                                                              '_blank',
+                                                              'noopener,noreferrer'
+                                                            )
+                                                          }
+                                                        }}
+                                                        size='sm'
+                                                        type='button'
+                                                        variant='secondary'
+                                                      >
+                                                        <Download className='size-4' />
+                                                        <span>{t('Download')}</span>
+                                                      </Button>
+                                                    </div>
                                                   )
                                                 }
                                               )}

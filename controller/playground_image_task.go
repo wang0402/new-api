@@ -2,9 +2,16 @@ package controller
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"io"
+	"mime"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,7 +29,8 @@ const (
 	playgroundImageTaskStatusSucceeded = "succeeded"
 	playgroundImageTaskStatusFailed    = "failed"
 
-	playgroundImageTaskTTL = 30 * time.Minute
+	playgroundImageTaskTTL          = 30 * time.Minute
+	playgroundImageMaxDownloadBytes = 50 << 20
 )
 
 type playgroundImageTask struct {
@@ -33,6 +41,11 @@ type playgroundImageTask struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	Response  any       `json:"response,omitempty"`
 	Error     any       `json:"error,omitempty"`
+}
+
+type playgroundImageDownloadRequest struct {
+	URL      string `json:"url"`
+	Filename string `json:"filename,omitempty"`
 }
 
 var playgroundImageTasks = struct {
@@ -112,6 +125,76 @@ func GetPlaygroundImageTask(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, task)
+}
+
+func DownloadPlaygroundImage(c *gin.Context) {
+	var req playgroundImageDownloadRequest
+	if err := common.UnmarshalBodyReusable(c, &req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "参数错误"})
+		return
+	}
+
+	imageURL := strings.TrimSpace(req.URL)
+	if err := validatePlaygroundImageDownloadURL(c.Request.Context(), imageURL); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	httpClient := &http.Client{
+		Timeout: 60 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 5 {
+				return fmt.Errorf("图片地址重定向次数过多")
+			}
+			return validatePlaygroundImageDownloadURL(req.Context(), req.URL.String())
+		},
+	}
+	downloadReq, err := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, imageURL, nil)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "图片地址无效"})
+		return
+	}
+	downloadReq.Header.Set("User-Agent", "new-api-playground-image-downloader/1.0")
+
+	resp, err := httpClient.Do(downloadReq)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"message": "下载图片失败"})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		c.JSON(http.StatusBadGateway, gin.H{"message": fmt.Sprintf("下载图片失败，状态码: %d", resp.StatusCode)})
+		return
+	}
+
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		mediaType = contentType
+	}
+	if !strings.HasPrefix(mediaType, "image/") {
+		c.JSON(http.StatusBadGateway, gin.H{"message": "远程地址不是图片"})
+		return
+	}
+
+	reader := io.LimitReader(resp.Body, playgroundImageMaxDownloadBytes+1)
+	body, err := io.ReadAll(reader)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"message": "读取图片失败"})
+		return
+	}
+	if len(body) > playgroundImageMaxDownloadBytes {
+		c.JSON(http.StatusBadGateway, gin.H{"message": "图片文件过大"})
+		return
+	}
+
+	filename := sanitizePlaygroundImageFilename(req.Filename, mediaType)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+	c.Data(http.StatusOK, mediaType, body)
 }
 
 func runPlaygroundImageTask(taskID string, body []byte, headers http.Header, path string, ctxValues map[string]any) {
@@ -234,6 +317,77 @@ func clonePlaygroundTaskHeaders(headers http.Header) http.Header {
 	cloned := headers.Clone()
 	cloned.Set("Content-Type", "application/json")
 	return cloned
+}
+
+func validatePlaygroundImageDownloadURL(ctx context.Context, rawURL string) error {
+	if rawURL == "" {
+		return fmt.Errorf("图片地址不能为空")
+	}
+
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Hostname() == "" {
+		return fmt.Errorf("图片地址无效")
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("仅支持 http 或 https 图片地址")
+	}
+
+	hostname := parsed.Hostname()
+	if ip := net.ParseIP(hostname); ip != nil {
+		if !isPublicPlaygroundImageIP(ip) {
+			return fmt.Errorf("不允许下载内网图片地址")
+		}
+		return nil
+	}
+
+	lookupCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	addrs, err := net.DefaultResolver.LookupIPAddr(lookupCtx, hostname)
+	if err != nil || len(addrs) == 0 {
+		return fmt.Errorf("无法解析图片地址")
+	}
+	for _, addr := range addrs {
+		if !isPublicPlaygroundImageIP(addr.IP) {
+			return fmt.Errorf("不允许下载内网图片地址")
+		}
+	}
+	return nil
+}
+
+func isPublicPlaygroundImageIP(ip net.IP) bool {
+	return ip != nil &&
+		!ip.IsUnspecified() &&
+		!ip.IsLoopback() &&
+		!ip.IsPrivate() &&
+		!ip.IsLinkLocalUnicast() &&
+		!ip.IsLinkLocalMulticast() &&
+		!ip.IsMulticast()
+}
+
+func sanitizePlaygroundImageFilename(filename string, mediaType string) string {
+	filename = filepath.Base(strings.TrimSpace(filename))
+	if filename == "." || filename == "/" || filename == "" {
+		filename = "playground-image"
+	}
+	filename = strings.Map(func(r rune) rune {
+		switch r {
+		case '/', '\\', ':', '*', '?', '"', '<', '>', '|':
+			return '-'
+		default:
+			return r
+		}
+	}, filename)
+
+	if filepath.Ext(filename) == "" {
+		extensions, _ := mime.ExtensionsByType(mediaType)
+		extension := ".png"
+		if len(extensions) > 0 {
+			extension = extensions[0]
+		}
+		filename += extension
+	}
+	return filename
 }
 
 func clonePlaygroundTaskContext(c *gin.Context) map[string]any {

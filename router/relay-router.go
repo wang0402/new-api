@@ -69,6 +69,7 @@ func SetRelayRouter(router *gin.Engine) {
 		playgroundRelayRouter.POST("/chat/completions", controller.Playground)
 		playgroundRelayRouter.POST("/images/generations", controller.PlaygroundImage)
 		playgroundRouter.GET("/images/generations/:task_id", controller.GetPlaygroundImageTask)
+		playgroundRouter.POST("/images/download", controller.DownloadPlaygroundImage)
 	}
 	relayV1Router := router.Group("/v1")
 	relayV1Router.Use(middleware.RouteTag("relay"))

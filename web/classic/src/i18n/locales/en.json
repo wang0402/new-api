@@ -3796,6 +3796,10 @@
     "图片生成完成": "Image generated",
     "未返回图片": "No image returned",
     "图片生成": "Image Generation",
-    "图片生成超时": "Image generation timed out"
+    "图片生成超时": "Image generation timed out",
+    "下载": "Download",
+    "下载图片": "Download image",
+    "下载已开始": "Download started",
+    "下载失败，请打开图片后手动保存": "Download failed. Please open the image and save it manually."
   }
 }

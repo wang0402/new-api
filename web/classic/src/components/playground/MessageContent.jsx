@@ -18,12 +18,66 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useRef, useEffect } from 'react';
-import { Typography, TextArea, Button } from '@douyinfe/semi-ui';
+import { Typography, TextArea, Button, Toast } from '@douyinfe/semi-ui';
 import MarkdownRenderer from '../common/markdown/MarkdownRenderer';
 import ThinkingContent from './ThinkingContent';
-import { Loader2, Check, X, Settings, AlertTriangle } from 'lucide-react';
+import {
+  Loader2,
+  Check,
+  X,
+  Settings,
+  AlertTriangle,
+  Download,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { isAdmin } from '../../helpers/utils';
+
+const getImageExtension = (src) => {
+  if (src.startsWith('data:image/')) {
+    const match = src.match(/^data:image\/([^;,]+)/);
+    return match?.[1]?.replace('jpeg', 'jpg') || 'png';
+  }
+  try {
+    const pathname = new URL(src, window.location.href).pathname;
+    const ext = pathname.split('.').pop()?.toLowerCase();
+    if (ext && /^[a-z0-9]+$/.test(ext) && ext.length <= 5) return ext;
+  } catch (e) {
+    // ignore invalid URL and fall back to png
+  }
+  return 'png';
+};
+
+const triggerImageDownload = async (src, filename) => {
+  let href = src;
+  let objectUrl = '';
+
+  if (!src.startsWith('data:')) {
+    const response = await fetch('/pg/images/download', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'New-Api-User': localStorage.getItem('uid') || '',
+      },
+      body: JSON.stringify({ url: src, filename }),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    objectUrl = URL.createObjectURL(await response.blob());
+    href = objectUrl;
+  }
+
+  const link = document.createElement('a');
+  link.href = href;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  if (objectUrl) {
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  }
+};
 
 const MessageContent = ({
   message,
@@ -39,6 +93,19 @@ const MessageContent = ({
   const { t } = useTranslation();
   const previousContentLengthRef = useRef(0);
   const lastContentRef = useRef('');
+
+  const handleImageDownload = async (src, index) => {
+    try {
+      await triggerImageDownload(
+        src,
+        `playground-image-${Date.now()}-${index + 1}.${getImageExtension(src)}`,
+      );
+      Toast.success(t('下载已开始'));
+    } catch (error) {
+      Toast.error(t('下载失败，请打开图片后手动保存'));
+      window.open(src, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   const isThinkingStatus =
     message.status === 'loading' || message.status === 'incomplete';
@@ -308,17 +375,40 @@ const MessageContent = ({
                 {imageContents.length > 0 && (
                   <div className='mb-3 space-y-2'>
                     {imageContents.map((imgItem, index) => (
-                      <div key={index} className='max-w-sm'>
-                        <img
-                          src={imgItem.image_url.url}
-                          alt={`用户上传的图片 ${index + 1}`}
-                          className='rounded-lg max-w-full h-auto shadow-sm border'
-                          style={{ maxHeight: '300px' }}
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'block';
+                      <div key={index} className='max-w-sm relative group'>
+                        <a
+                          href={imgItem.image_url.url}
+                          target='_blank'
+                          rel='noreferrer'
+                          className='block'
+                        >
+                          <img
+                            src={imgItem.image_url.url}
+                            alt={`用户上传的图片 ${index + 1}`}
+                            className='rounded-lg max-w-full h-auto shadow-sm border'
+                            style={{ maxHeight: '300px' }}
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.parentElement.nextSibling.style.display =
+                                'block';
+                            }}
+                          />
+                        </a>
+                        <Button
+                          size='small'
+                          theme='solid'
+                          type='primary'
+                          icon={<Download size={14} />}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            handleImageDownload(imgItem.image_url.url, index);
                           }}
-                        />
+                          className='!absolute !right-2 !top-2 opacity-95 shadow-sm'
+                          aria-label={t('下载图片')}
+                        >
+                          {t('下载')}
+                        </Button>
                         <div
                           className='text-red-500 text-sm p-2 bg-red-50 rounded-lg border border-red-200'
                           style={{ display: 'none' }}
