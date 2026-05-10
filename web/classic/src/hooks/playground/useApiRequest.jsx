@@ -94,6 +94,29 @@ export const useApiRequest = (
     return await response.json();
   }, []);
 
+  const normalizeImageGenerationResponse = useCallback((payload) => {
+    if (!payload) {
+      return { data: [] };
+    }
+    if (Array.isArray(payload.data)) {
+      return payload;
+    }
+    if (payload.response) {
+      return normalizeImageGenerationResponse(payload.response);
+    }
+    if (payload.result) {
+      return normalizeImageGenerationResponse(payload.result);
+    }
+    if (typeof payload === 'string') {
+      try {
+        return normalizeImageGenerationResponse(JSON.parse(payload));
+      } catch (e) {
+        return { data: [] };
+      }
+    }
+    return { ...payload, data: [] };
+  }, []);
+
   const waitForImageTask = useCallback(
     async (taskId) => {
       const startedAt = Date.now();
@@ -103,7 +126,7 @@ export const useApiRequest = (
 
         const task = await requestImageTaskStatus(taskId);
         if (task.status === 'succeeded') {
-          return task.response || { data: [] };
+          return normalizeImageGenerationResponse(task.response);
         }
         if (task.status === 'failed') {
           const err = new Error(parseImageTaskError(task.error));
@@ -114,7 +137,13 @@ export const useApiRequest = (
 
       throw new Error(t('图片生成超时'));
     },
-    [parseImageTaskError, requestImageTaskStatus, sleep, t],
+    [
+      normalizeImageGenerationResponse,
+      parseImageTaskError,
+      requestImageTaskStatus,
+      sleep,
+      t,
+    ],
   );
 
   // 处理消息自动关闭逻辑的公共函数
@@ -307,12 +336,11 @@ export const useApiRequest = (
           throw err;
         }
 
-        const task = await response.json();
-        const data = await waitForImageTask(task.id);
+        const data = await response.json();
 
         setDebugData((prev) => ({
           ...prev,
-          response: JSON.stringify({ task, result: data }, null, 2),
+          response: JSON.stringify(data, null, 2),
         }));
         setActiveDebugTab(DEBUG_TABS.RESPONSE);
 
@@ -423,11 +451,12 @@ export const useApiRequest = (
           throw err;
         }
 
-        const data = await response.json();
+        const task = await response.json();
+        const data = await waitForImageTask(task.id);
 
         setDebugData((prev) => ({
           ...prev,
-          response: JSON.stringify(data, null, 2),
+          response: JSON.stringify({ task, result: data }, null, 2),
         }));
         setActiveDebugTab(DEBUG_TABS.RESPONSE);
 

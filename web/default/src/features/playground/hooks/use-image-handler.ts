@@ -41,6 +41,38 @@ function extractTaskErrorMessage(error: unknown): string {
   )
 }
 
+function normalizeImageGenerationResponse(
+  payload: unknown
+): ImageGenerationResponse {
+  if (!payload) {
+    return { created: 0, data: [] }
+  }
+  if (typeof payload === 'string') {
+    try {
+      return normalizeImageGenerationResponse(JSON.parse(payload))
+    } catch {
+      return { created: 0, data: [] }
+    }
+  }
+
+  const response = payload as ImageGenerationResponse & {
+    response?: unknown
+    result?: unknown
+  }
+
+  if (Array.isArray(response.data)) {
+    return response
+  }
+  if (response.response) {
+    return normalizeImageGenerationResponse(response.response)
+  }
+  if (response.result) {
+    return normalizeImageGenerationResponse(response.result)
+  }
+
+  return { ...response, created: response.created || 0, data: [] }
+}
+
 async function waitForImageTask(taskId: string): Promise<ImageGenerationResponse> {
   const startedAt = Date.now()
 
@@ -49,7 +81,7 @@ async function waitForImageTask(taskId: string): Promise<ImageGenerationResponse
 
     const task: ImageGenerationTask = await getImageGenerationTask(taskId)
     if (task.status === 'succeeded') {
-      return task.response || { created: 0, data: [] }
+      return normalizeImageGenerationResponse(task.response)
     }
     if (task.status === 'failed') {
       throw new Error(extractTaskErrorMessage(task.error))
