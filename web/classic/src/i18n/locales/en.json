@@ -3795,6 +3795,7 @@
     "图片数量": "Image count",
     "图片生成完成": "Image generated",
     "未返回图片": "No image returned",
-    "图片生成": "Image Generation"
+    "图片生成": "Image Generation",
+    "图片生成超时": "Image generation timed out"
   }
 }

@@ -32,6 +32,9 @@ import {
   processIncompleteThinkTags,
 } from '../../helpers';
 
+const IMAGE_TASK_POLL_INTERVAL_MS = 2000;
+const IMAGE_TASK_TIMEOUT_MS = 10 * 60 * 1000;
+
 export const useApiRequest = (
   setMessage,
   setDebugData,
@@ -40,6 +43,79 @@ export const useApiRequest = (
   saveMessages,
 ) => {
   const { t } = useTranslation();
+
+  const sleep = useCallback((ms) => {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+  }, []);
+
+  const parseImageTaskError = useCallback((errorPayload) => {
+    return (
+      errorPayload?.error?.message ||
+      errorPayload?.message ||
+      t('请求发生错误')
+    );
+  }, [t]);
+
+  const requestImageTaskStatus = useCallback(async (taskId) => {
+    const response = await fetch(
+      `${API_ENDPOINTS.IMAGE_GENERATION_TASK}/${taskId}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'New-Api-User': getUserIdFromLocalStorage(),
+        },
+      },
+    );
+
+    if (!response.ok) {
+      let errorBody = '';
+      let parsedError = null;
+      try {
+        errorBody = await response.text();
+        const errorJson = JSON.parse(errorBody);
+        if (errorJson?.error) {
+          parsedError = errorJson.error;
+        }
+      } catch (e) {
+        if (!errorBody) {
+          errorBody = '无法读取错误响应体';
+        }
+      }
+
+      const err = new Error(
+        parsedError?.message ||
+          `HTTP error! status: ${response.status}, body: ${errorBody}`,
+      );
+      err.errorCode = parsedError?.code || null;
+      throw err;
+    }
+
+    return await response.json();
+  }, []);
+
+  const waitForImageTask = useCallback(
+    async (taskId) => {
+      const startedAt = Date.now();
+
+      while (Date.now() - startedAt < IMAGE_TASK_TIMEOUT_MS) {
+        await sleep(IMAGE_TASK_POLL_INTERVAL_MS);
+
+        const task = await requestImageTaskStatus(taskId);
+        if (task.status === 'succeeded') {
+          return task.response || { data: [] };
+        }
+        if (task.status === 'failed') {
+          const err = new Error(parseImageTaskError(task.error));
+          err.errorCode = task.error?.error?.code || task.error?.code || null;
+          throw err;
+        }
+      }
+
+      throw new Error(t('图片生成超时'));
+    },
+    [parseImageTaskError, requestImageTaskStatus, sleep, t],
+  );
 
   // 处理消息自动关闭逻辑的公共函数
   const applyAutoCollapseLogic = useCallback(
@@ -231,11 +307,12 @@ export const useApiRequest = (
           throw err;
         }
 
-        const data = await response.json();
+        const task = await response.json();
+        const data = await waitForImageTask(task.id);
 
         setDebugData((prev) => ({
           ...prev,
-          response: JSON.stringify(data, null, 2),
+          response: JSON.stringify({ task, result: data }, null, 2),
         }));
         setActiveDebugTab(DEBUG_TABS.RESPONSE);
 
@@ -433,6 +510,7 @@ export const useApiRequest = (
       saveMessages,
       t,
       applyAutoCollapseLogic,
+      waitForImageTask,
     ],
   );
 

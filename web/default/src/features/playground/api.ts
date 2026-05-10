@@ -5,6 +5,7 @@ import type {
   ChatCompletionResponse,
   ImageGenerationRequest,
   ImageGenerationResponse,
+  ImageGenerationTask,
   ModelOption,
   GroupOption,
 } from './types'
@@ -29,6 +30,31 @@ export async function sendImageGeneration(
 ): Promise<ImageGenerationResponse> {
   const res = await api.post(API_ENDPOINTS.IMAGE_GENERATIONS, payload, {
     skipErrorHandler: true,
+  } as Record<string, unknown>)
+  return res.data
+}
+
+/**
+ * Submit async image generation task
+ */
+export async function submitImageGenerationTask(
+  payload: ImageGenerationRequest
+): Promise<ImageGenerationTask> {
+  const res = await api.post(API_ENDPOINTS.IMAGE_GENERATIONS, payload, {
+    skipErrorHandler: true,
+  } as Record<string, unknown>)
+  return res.data
+}
+
+/**
+ * Get async image generation task status
+ */
+export async function getImageGenerationTask(
+  taskId: string
+): Promise<ImageGenerationTask> {
+  const res = await api.get(`${API_ENDPOINTS.IMAGE_GENERATION_TASK}/${taskId}`, {
+    skipErrorHandler: true,
+    disableDuplicate: true,
   } as Record<string, unknown>)
   return res.data
 }

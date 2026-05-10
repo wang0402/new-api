@@ -3650,6 +3650,7 @@
     "图片数量": "Nombre d’images",
     "图片生成完成": "Image générée",
     "未返回图片": "Aucune image retournée",
-    "图片生成": "Génération d’images"
+    "图片生成": "Génération d’images",
+    "图片生成超时": "La génération d’image a expiré"
   }
 }

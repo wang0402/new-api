@@ -111,6 +111,21 @@ export interface ImageGenerationResponse {
   data: GeneratedImage[]
 }
 
+export type ImageGenerationTaskStatus =
+  | 'pending'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+
+export interface ImageGenerationTask {
+  id: string
+  status: ImageGenerationTaskStatus
+  created_at: string
+  updated_at: string
+  response?: ImageGenerationResponse
+  error?: unknown
+}
+
 // Configuration types
 export interface PlaygroundConfig {
   model: string
