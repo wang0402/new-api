@@ -4468,6 +4468,14 @@
     "Purchase a plan to enjoy model benefits": "Souscrivez un plan pour bénéficier des avantages des modèles",
     "Purchase here": "Acheter ici",
     "Timed cache (1h)": "Cache limité (1h)",
-    "Download failed": "Échec du téléchargement"
+    "Download failed": "Échec du téléchargement",
+    "Hidden from users": "Hidden from users",
+    "Current hidden group. Keeping existing assignment.": "Current hidden group. Keeping existing assignment.",
+    "When enabled, regular users can see this group when creating tokens or choosing a Playground group.": "When enabled, regular users can see this group when creating tokens or choosing a Playground group.",
+    "Use the pricing group table to manage the ratio and whether the group appears in regular user selection lists.": "Use the pricing group table to manage the ratio and whether the group appears in regular user selection lists.",
+    "User selectable only controls regular user visibility for new selections. Existing tokens and configured channels keep working as long as the group remains configured.": "User selectable only controls regular user visibility for new selections. Existing tokens and configured channels keep working as long as the group remains configured.",
+    "To disable a route, remove or disable the corresponding channel/model group configuration instead of only clearing user selectable.": "To disable a route, remove or disable the corresponding channel/model group configuration instead of only clearing user selectable.",
+    "Edit billing ratios and regular user visibility in one table.": "Edit billing ratios and regular user visibility in one table.",
+    "Current group is no longer configured. Keeping existing assignment.": "Current group is no longer configured. Keeping existing assignment."
   }
 }

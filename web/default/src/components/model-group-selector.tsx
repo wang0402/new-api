@@ -53,9 +53,11 @@ interface ModelOption {
 interface GroupOption {
   label: string
   value: string
-  ratio?: number
+  ratio?: number | string
   desc?: string
   description?: string
+  selectable?: boolean
+  admin_only?: boolean
 }
 
 interface ModelSelectorProps {

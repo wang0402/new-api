@@ -41,6 +41,8 @@ export type ApiKeyGroupOption = {
   label: string
   desc?: string
   ratio?: number | string
+  selectable?: boolean
+  adminOnly?: boolean
 }
 
 type ApiKeyGroupComboboxProps = {
@@ -91,6 +93,21 @@ function GroupRatioBadge({ ratio }: { ratio: ApiKeyGroupOption['ratio'] }) {
       )}
     >
       {label}
+    </Badge>
+  )
+}
+
+function GroupVisibilityBadge(props: { option?: ApiKeyGroupOption }) {
+  const { t } = useTranslation()
+
+  if (!props.option?.adminOnly) return null
+
+  return (
+    <Badge
+      variant='outline'
+      className='border-amber-200 bg-amber-50 text-[10px] text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300 sm:text-xs'
+    >
+      {t('Hidden from users')}
     </Badge>
   )
 }
@@ -154,7 +171,10 @@ export function ApiKeyGroupCombobox({
             )}
           </span>
           <span className='hidden sm:block'>
-            <GroupRatioBadge ratio={selectedOption?.ratio} />
+            <span className='flex items-center gap-1.5'>
+              <GroupVisibilityBadge option={selectedOption} />
+              <GroupRatioBadge ratio={selectedOption?.ratio} />
+            </span>
           </span>
         </span>
         <ChevronsUpDown className='h-4 w-4 shrink-0 opacity-50' />
@@ -197,7 +217,10 @@ export function ApiKeyGroupCombobox({
                       </span>
                     )}
                   </span>
-                  <GroupRatioBadge ratio={option.ratio} />
+                  <span className='flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center'>
+                    <GroupVisibilityBadge option={option} />
+                    <GroupRatioBadge ratio={option.ratio} />
+                  </span>
                 </CommandItem>
               ))}
             </CommandGroup>

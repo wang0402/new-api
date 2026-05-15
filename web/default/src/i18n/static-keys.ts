@@ -103,6 +103,14 @@ export const STATIC_I18N_KEYS = [
   'Failed to update user',
   'Failed to delete user',
   'No user selected',
+  'Hidden from users',
+  'Current hidden group. Keeping existing assignment.',
+  'Current group is no longer configured. Keeping existing assignment.',
+  'When enabled, regular users can see this group when creating tokens or choosing a Playground group.',
+  'Use the pricing group table to manage the ratio and whether the group appears in regular user selection lists.',
+  'User selectable only controls regular user visibility for new selections. Existing tokens and configured channels keep working as long as the group remains configured.',
+  'To disable a route, remove or disable the corresponding channel/model group configuration instead of only clearing user selectable.',
+  'Edit billing ratios and regular user visibility in one table.',
 
   // Redemption codes
   'Unused',

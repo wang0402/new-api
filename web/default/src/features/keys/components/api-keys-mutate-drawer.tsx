@@ -32,6 +32,7 @@ import { toast } from 'sonner'
 import { getUserModels, getUserGroups } from '@/lib/api'
 import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
 import { cn } from '@/lib/utils'
+import { useIsAdmin } from '@/hooks/use-admin'
 import { useStatus } from '@/hooks/use-status'
 import { Button } from '@/components/ui/button'
 import {
@@ -123,6 +124,7 @@ export function ApiKeysMutateDrawer({
   const isUpdate = !!currentRow
   const { triggerRefresh } = useApiKeys()
   const { status } = useStatus()
+  const isAdmin = useIsAdmin()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const defaultUseAutoGroup = status?.default_use_auto_group === true
@@ -149,6 +151,8 @@ export function ApiKeysMutateDrawer({
       label: key,
       desc: info.desc || key,
       ratio: info.ratio,
+      selectable: info.selectable,
+      adminOnly: info.admin_only,
     })
   )
   const backendHasAuto = groups.some((g) => g.value === 'auto')
@@ -171,18 +175,24 @@ export function ApiKeysMutateDrawer({
     }
   }, [open, isUpdate, currentRow, form, defaultUseAutoGroup, backendHasAuto])
 
-  // Correct group after groups load: if the form value is not in available groups, fall back
+  // Correct group after groups load, but preserve existing hidden groups while editing.
   useEffect(() => {
     if (groups.length === 0) return
     const currentGroup = form.getValues('group')
-    if (currentGroup && !groups.some((g) => g.value === currentGroup)) {
+    const isExistingHiddenGroup =
+      isUpdate && currentRow && currentGroup === currentRow.group
+    if (
+      currentGroup &&
+      !groups.some((g) => g.value === currentGroup) &&
+      !isExistingHiddenGroup
+    ) {
       const fallback = groups.find((g) => g.value === 'default')?.value ?? groups[0]?.value ?? ''
       form.setValue('group', fallback)
       if (currentGroup === 'auto') {
         form.setValue('cross_group_retry', false)
       }
     }
-  }, [groups, form])
+  }, [groups, form, isUpdate, currentRow])
 
   const onSubmit = async (data: ApiKeyFormValues) => {
     setIsSubmitting(true)
@@ -262,6 +272,8 @@ export function ApiKeysMutateDrawer({
     : t('Enter quota in {{currency}}', { currency: currencyLabel })
   const selectedGroup = form.watch('group')
   const unlimitedQuota = form.watch('unlimited_quota')
+  const selectedGroupIsUnavailable =
+    !!selectedGroup && !groups.some((group) => group.value === selectedGroup)
 
   return (
     <Sheet
@@ -321,7 +333,23 @@ export function ApiKeysMutateDrawer({
                     <FormLabel>{t('Group')}</FormLabel>
                     <FormControl>
                       <ApiKeyGroupCombobox
-                        options={groups}
+                        options={
+                          selectedGroupIsUnavailable
+                            ? [
+                                {
+                                  value: selectedGroup,
+                                  label: selectedGroup,
+                                  desc: t(
+                                    isAdmin
+                                      ? 'Current group is no longer configured. Keeping existing assignment.'
+                                      : 'Current hidden group. Keeping existing assignment.'
+                                  ),
+                                  adminOnly: true,
+                                },
+                                ...groups,
+                              ]
+                            : groups
+                        }
                         value={field.value}
                         onValueChange={field.onChange}
                         placeholder={t('Select a group')}

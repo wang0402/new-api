@@ -90,7 +90,10 @@ func Distribute() func(c *gin.Context) {
 						return
 					}
 					if playgroundRequest.Group != "" {
-						if !service.GroupInUserUsableGroups(usingGroup, playgroundRequest.Group) && playgroundRequest.Group != usingGroup {
+						role := c.GetInt("role")
+						userGroup := common.GetContextKeyString(c, constant.ContextKeyUserGroup)
+						canUseGroup := service.CanSelectGroup(userGroup, playgroundRequest.Group, service.IsAdminRole(role)) || playgroundRequest.Group == usingGroup
+						if !canUseGroup {
 							abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorGroupAccessDenied))
 							return
 						}

@@ -849,7 +849,7 @@ function GroupPricingTable({
             <CardTitle>{t('Pricing groups')}</CardTitle>
             <CardDescription>
               {t(
-                'Edit billing ratios and user-selectable groups in one table.'
+                'Edit billing ratios and regular user visibility in one table.'
               )}
             </CardDescription>
           </div>

@@ -9,6 +9,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 
 	"github.com/gin-gonic/gin"
@@ -29,6 +30,19 @@ func buildMaskedTokenResponses(tokens []*model.Token) []*model.Token {
 		maskedTokens = append(maskedTokens, buildMaskedTokenResponse(token))
 	}
 	return maskedTokens
+}
+
+func validateTokenGroupSelection(c *gin.Context, group string, allowExistingHidden bool) bool {
+	if allowExistingHidden {
+		return true
+	}
+	userGroup := c.GetString("group")
+	role := c.GetInt("role")
+	if service.CanSelectGroup(userGroup, group, service.IsAdminRole(role)) {
+		return true
+	}
+	common.ApiErrorMsg(c, fmt.Sprintf("无权选择 %s 分组", group))
+	return false
 }
 
 func GetAllTokens(c *gin.Context) {
@@ -201,6 +215,9 @@ func AddToken(c *gin.Context) {
 		})
 		return
 	}
+	if !validateTokenGroupSelection(c, token.Group, false) {
+		return
+	}
 	key, err := common.GenerateKey()
 	if err != nil {
 		common.ApiErrorI18n(c, i18n.MsgTokenGenerateFailed)
@@ -289,6 +306,9 @@ func UpdateToken(c *gin.Context) {
 	if statusOnly != "" {
 		cleanToken.Status = token.Status
 	} else {
+		if !validateTokenGroupSelection(c, token.Group, token.Group == cleanToken.Group) {
+			return
+		}
 		// If you add more fields, please also update token.Update()
 		cleanToken.Name = token.Name
 		cleanToken.ExpiredTime = token.ExpiredTime

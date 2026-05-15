@@ -530,7 +530,8 @@ func GetUserModels(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	groups := service.GetUserUsableGroups(user.Group)
+	includeAllConfigured := model.IsAdmin(id)
+	groups := service.GetVisibleGroupNames(user.Group, includeAllConfigured)
 	var models []string
 	for group := range groups {
 		for _, g := range model.GetGroupEnabledModels(group) {

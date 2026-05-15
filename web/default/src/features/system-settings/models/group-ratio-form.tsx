@@ -380,7 +380,7 @@ function GroupPricingGuide({ open, onOpenChange }: GroupPricingGuideProps) {
                 </span>
                 {': '}
                 {t(
-                  'When enabled, users can pick this group when creating tokens.'
+                  'When enabled, regular users can see this group when creating tokens or choosing a Playground group.'
                 )}
               </p>
             </div>
@@ -392,7 +392,7 @@ function GroupPricingGuide({ open, onOpenChange }: GroupPricingGuideProps) {
               <AccordionContent className='space-y-3'>
                 <p className='text-muted-foreground text-sm leading-6'>
                   {t(
-                    'Use the pricing group table to manage the ratio and whether the group appears in the token creation dropdown.'
+                    'Use the pricing group table to manage the ratio and whether the group appears in regular user selection lists.'
                   )}
                 </p>
                 <GuideCodeBlock>
@@ -403,7 +403,12 @@ vip          0.5     ${t('No')}                ${t('Assigned by administrator on
                 </GuideCodeBlock>
                 <p className='text-muted-foreground text-sm leading-6'>
                   {t(
-                    'Users only see groups marked as user selectable. Non-selectable groups can still be assigned by administrators.'
+                    'User selectable only controls regular user visibility for new selections. Existing tokens and configured channels keep working as long as the group remains configured.'
+                  )}
+                </p>
+                <p className='text-muted-foreground text-sm leading-6'>
+                  {t(
+                    'To disable a route, remove or disable the corresponding channel/model group configuration instead of only clearing user selectable.'
                   )}
                 </p>
               </AccordionContent>
