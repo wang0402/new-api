@@ -62,6 +62,7 @@ const (
 	MsgRedemptionNameLength        = "redemption.name_length"
 	MsgRedemptionCountPositive     = "redemption.count_positive"
 	MsgRedemptionCountMax          = "redemption.count_max"
+	MsgRedemptionQuotaPositive     = "redemption.quota_positive"
 	MsgRedemptionCreateFailed      = "redemption.create_failed"
 	MsgRedemptionInvalid           = "redemption.invalid"
 	MsgRedemptionUsed              = "redemption.used"
